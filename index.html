@@ -1,0 +1,16 @@
+<html>
+<head>
+    <title>Hello World</title>
+    <script>
+        fetch('data.json')
+            .then(response => response.json())
+            .then(data => {
+                const messageElement = document.getElementById('message');
+                messageElement.textContent = data.message;
+            });
+    </script>
+</head>
+<body>
+    <h1 id="message">Loading...</h1>
+</body>
+</html>
