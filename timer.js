@@ -1,140 +1,162 @@
-const timeDisplay = document.querySelector("#timeDisplay");
+var TIMERSTATE = "off";
+/* STATES:
 
-let startTime = 0;
-let elapsedTime = 0;
-let currentTime = 0;
-let intervalId;
-let mins = 0;
-let secs = 0;
-let centi = 0;
-let spacebarPressedTime = 0;
-let spacebarReleasedTime = 0;
+    off (no interaction), 
+    waiting (waiting to see if spacebar will be held longer than the waittime)
+    ready (ready to start on spacebar release)
+    timing (timer is timing solve)
 
-function getSettings(){
-    /*
-    VIEW TYPES:
+*/
 
-        cs - include centiseconds (2 digits after .)
-        ds - use deciseconds (1 digit after .)
-        hide - don't show the time until after you stop the timer
+var timer = document.getElementById("timerDisplay");
+var timerStateDisplay = document.getElementById("timerStateDisplay");
+var spaceHeldTimeDisplay = document.getElementById("spaceHeldTime");
+var spacePressedTime = null;
+var spaceHeldTime = null;
+var WAITTIME = 300;
 
-    */
-    if (localStorage.getItem("timerSettings") == null) {
-        var timerSettings = {
-            "view": "ms",
-            "timerHiddenText": "Solve"
-        };
-        localStorage.setItem('timerSettings', JSON.stringify(timerSettings));
+var timerInitTime = null;
+var timerUpdateInterval = null;
+
+// functions
+
+function getSpaceHeldTime() {
+    if (spacePressedTime != null) {
+    return Date.now() - spacePressedTime;
     }
-    else {
-        var timerSettings = JSON.parse(localStorage.getItem('timerSettings'));
+    return 0;
+}
+
+function getElapsedTime() {
+    return Date.now() - timerInitTime;
+}
+
+// actual timer functions
+
+function pad(time, desiredLen) {
+    var output = String(time)
+    while (output.length < desiredLen) {
+        output = "0" + output;
     }
-    return timerSettings;
+    return output
 }
 
-function updateSettings(newSettings){
-    localStorage.setItem('timerSettings', JSON.stringify(newSettings))
+function updateTimer() {
+    var elapsedTime = getElapsedTime();
+    var output = "";
+
+    var minutes = Math.floor((elapsedTime / (1000 * 60)) % 60);
+    var seconds = Math.floor((elapsedTime / 1000) % 60);
+    if (minutes > 0) {
+        seconds = pad(seconds, 2);
+        output = String(minutes) + ":";
+    }
+    var centiseconds = pad(Math.floor(elapsedTime % 1000 / 10), 2);
+
+    output = output + String(seconds);
+    output = output + "." + String(centiseconds);
+
+    timer.textContent = output;
 }
 
-function setSetting(setting, newValue) {
-    var settings = getSettings();
-    settings[setting] = newValue;
-    updateSettings(settings);
+function updateStateDisplay() {
+    timerStateDisplay.textContent = TIMERSTATE;
+    spaceHeldTimeDisplay.textContent = getSpaceHeldTime();
 }
 
-setSetting("view", "cs");
-var timerSettings = getSettings();
+// space press/release functions
+function timerSpacePressed() {
+    if (spacePressedTime == null) {
+        spacePressedTime = Date.now();
+    }
+    var heldTime = getSpaceHeldTime();
+    
+    // handles if user pressed space before readying timer
+    if (heldTime < WAITTIME && TIMERSTATE != "timing") {
+        timer.classList.remove("timerDisplayOff");
+        timer.classList.add("timerDisplayWaiting");
+        //console.log("Should be waiting...")
+
+        TIMERSTATE = "waiting"
+    }
+
+    // handles if user held space until timer was ready
+    else if (heldTime >= WAITTIME && TIMERSTATE == "waiting") {
+        timer.classList.remove("timerDisplayWaiting");
+        timer.classList.add("timerDisplayReady");
+        //console.log("Should be ready...")
+
+        TIMERSTATE = "ready"
+    }
+
+    // handle if user stopped timer
+    else if (TIMERSTATE == "timing") {
+        clearInterval(timerUpdateInterval);
+        timerUpdateInterval = null;
+        updateTimer(); // one last time
+
+        timer.classList.remove("timerDisplayTiming");
+        timer.classList.remove("timerDisplayReady");
+        timer.classList.remove("timerDisplayWaiting");
+        timer.classList.add("timerDisplayOff");
+        //console.log("Should have stopped the timer...")
+
+        TIMERSTATE = "off";
+        timerInitTime = null;
+        spacePressedTime = null;
+        spaceHeldTime = null;
+    }
+
+    updateStateDisplay();
+}
+
+function timerSpaceReleased() {
+    var heldTime = getSpaceHeldTime();
+    // handles if user released space before readying timer
+    if (heldTime < WAITTIME) {
+        timer.classList.remove("timerDisplayWaiting");
+        timer.classList.add("timerDisplayOff");
+        //console.log("Should have stopped waiting...")
+        spacePressedTime = null;
+
+        TIMERSTATE = "off"
+    }
+
+    // handles if user readied timer
+    else if (heldTime >= WAITTIME && TIMERSTATE == "ready") {
+        timer.classList.remove("timerDisplayWaiting");
+        timer.classList.add("timerDisplayTiming");
+        //console.log("Should have started timing...")
+        spacePressedTime = null;
+
+        timer.textContent = "0";
+
+        TIMERSTATE = "timing"
+        timerInitTime = Date.now();
+        timerUpdateInterval = setInterval(updateTimer, 10);
+    }
+
+    else if (heldTime >= WAITTIME) {
+        timer.classList.remove("timerDisplayWaiting")
+        timer.classList.add("timerDisplayOff")
+
+        TIMERSTATE = "off"
+        spacePressedTime = null;
+    }
+
+    updateStateDisplay();
+}
+
+// event listeners
 
 document.body.addEventListener("keydown", (event) => {
-    if (event.key === " ") {
-        spacebarPressedTime = Date.now();
+    if (event.key == " " || TIMERSTATE == "timing") {
+        timerSpacePressed();
     }
 });
 
 document.body.addEventListener("keyup", (event) => {
-    if (event.key === " ") {
-        spacebarReleasedTime = Date.now();
-        const spacebarHoldDuration = spacebarReleasedTime - spacebarPressedTime;
-        console.log(spacebarHoldDuration)
-
-        if (spacebarHoldDuration >= 300) {
-            resetTimer();
-        } else {
-            if (intervalId) {
-                pauseTimer();
-            } else {
-                resetTimer()
-                startTimer();
-            }
-        }
+    if (event.key == " ") {
+        timerSpaceReleased();
     }
 });
-
-function startTimer() {
-    startTime = Date.now() - elapsedTime;
-    intervalId = setInterval(updateTime, 10);
-}
-
-function pauseTimer() {
-    elapsedTime = Date.now() - startTime;
-    clearInterval(intervalId);
-    intervalId = null;
-
-    timeDisplay.textContent = formatTime(String(`${mins}:${secs}.${centi}`)); //display real time
-}
-
-function resetTimer() {
-    elapsedTime = 0;
-    clearInterval(intervalId);
-    intervalId = null;
-    mins = 0;
-    secs = 0;
-    centi = 0;
-    timeDisplay.textContent = "0.00";
-}
-
-function formatTime(time){
-    let output = String(time);
-    //no minutes
-    if (output.slice(0, 2) == "0:") {
-        output = output.slice(2, output.length);
-    }
-    
-    else if (output.slice(0, 2) !== "0:") {
-        output = String(mins) + ":" + pad(secs) + "." + pad(centi);
-    }
-    
-    return output;
-};
-
-function pad(unit) {
-    return (("0") + unit).length > 2 ? unit : "0" + unit;
-}
-
-function getTime(time) {
-    if (timerSettings["view"] == "hide") {
-        return timerSettings["timerHiddenText"];
-    }
-
-    if (timerSettings["view"] == "cs") {
-        return time;
-    }
-    else if (timerSettings["view"] == "ds") {
-        return time.slice(0, time.length - 1);
-    }
-    else {
-        return time;
-    }
-}
-
-function updateTime() {
-    elapsedTime = Date.now() - startTime;
-
-    centi = Math.floor((elapsedTime / 10) % 100);
-    secs = Math.floor((elapsedTime / 1000) % 60);
-    mins = Math.floor((elapsedTime / (1000 * 60)) % 60);
-
-    centi = pad(centi); // pad it so it's always 2 digits
-
-    timeDisplay.textContent = getTime(formatTime(String(`${mins}:${secs}.${centi}`)));
-}

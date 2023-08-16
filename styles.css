@@ -1,23 +1,48 @@
-.timerBtn{
-    width: 80px;
-    height: 30px;
-    border: 3px solid;
-    border-radius: 12px;
-    background-color: #222222;
-    color: #FFFFFF;
-    cursor: pointer;
-    font-family: consolas, monospace
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300&display=swap');
+
+body {
+    font-family: 'Open Sans', sans-serif;
 }
 
-#timeDisplay{
-    font-size: 75px;
-    color: #FFFFFF;
-    font-family: consolas, monospace;
-}
-
-#timeContainer{
+.timerDisplayOff {
+    font-size: 80px;
+    background-color: #1B1B1E;
+    border-radius: 10px;
+    padding: 10px;
     text-align: center;
-    border: 3px solid;
-    border-radius: 25px;
-    background-color: #222222;
+    color: #FFFFFF;
+}
+
+.timerDisplayWaiting {
+    font-size: 80px;
+    background-color: #1B1B1E;
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    color: #D7263D;
+}
+
+.timerDisplayReady {
+    font-size: 80px;
+    background-color: #1B1B1E;
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    color: #4AAD52;
+}
+
+.timerDisplayTiming {
+    font-size: 80px;
+    background-color: #1B1B1E;
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    color: #FFFFFF;
+}
+
+.bigText {
+    font-size: 80px;
+    padding: 10px;
+    text-align: center;
+    color: #000000;
 }
